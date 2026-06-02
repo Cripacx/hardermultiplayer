@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import de.cripacx.hardermultiplayer.block.ModBlocks;
 import de.cripacx.hardermultiplayer.item.ModItems;
+import de.cripacx.hardermultiplayer.soulrevival.SoulRevivalBootstrap;
 
 public class HarderMultiplayer {
 
@@ -28,6 +29,8 @@ public class HarderMultiplayer {
         registrars.blocks(ModBlocks::initialize);
         registrars.items(ModItems::initialize);
         registrars.creativeModeTabs(ModItems::initialize);
+
+        SoulRevivalBootstrap.initialize();
     }
 
 }
