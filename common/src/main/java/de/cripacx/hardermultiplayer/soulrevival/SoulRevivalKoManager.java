@@ -31,6 +31,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -318,6 +319,7 @@ public final class SoulRevivalKoManager {
     private static void performRevive(ServerPlayer target) {
         SoulRevivalPersistence.getState().clearKnockedOut(target.getUUID());
         SoulRevivalKoDisplay.clearDeadMarker(target);
+        teleportToRespawnPoint(target);
         target.setHealth(target.getMaxHealth());
         target.removeAllEffects();
         MinecraftServer server = target.level().getServer();
@@ -326,6 +328,21 @@ public final class SoulRevivalKoManager {
             announceRevive(server, target);
             playReviveSoundForAll(server);
         }
+    }
+
+    private static void teleportToRespawnPoint(ServerPlayer target) {
+        TeleportTransition transition = target.findRespawnPositionAndUseSpawnBlock(false, TeleportTransition.DO_NOTHING);
+        Vec3 respawnPosition = transition.position();
+        target.teleportTo(
+                transition.newLevel(),
+                respawnPosition.x,
+                respawnPosition.y,
+                respawnPosition.z,
+                java.util.Set.of(),
+                transition.yRot(),
+                transition.xRot(),
+                false
+        );
     }
 
     private static void announceRevive(MinecraftServer server, ServerPlayer target) {
