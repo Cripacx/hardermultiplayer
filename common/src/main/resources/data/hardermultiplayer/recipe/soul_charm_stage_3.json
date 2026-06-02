@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SES",
+    "NAN",
+    "CEC"
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:nether_star"
+    },
+    "E": {
+      "item": "minecraft:echo_shard"
+    },
+    "N": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "C": {
+      "item": "minecraft:end_crystal"
+    },
+    "A": {
+      "item": "minecraft:enchanted_golden_apple"
+    }
+  },
+  "result": {
+    "id": "hardermultiplayer:soul_charm",
+    "count": 1
+  }
+}

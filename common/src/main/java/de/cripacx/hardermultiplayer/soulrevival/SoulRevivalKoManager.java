@@ -13,11 +13,19 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -106,6 +114,10 @@ public final class SoulRevivalKoManager {
     }
 
     private static void onEntityTick(Entity entity) {
+        if (entity instanceof ItemEntity itemEntity) {
+            handleTossRevive(itemEntity);
+        }
+
         if (!(entity instanceof Mob mob)) {
             return;
         }
@@ -128,7 +140,29 @@ public final class SoulRevivalKoManager {
     }
 
     private static InteractionEventResult onUseItem(Player player, net.minecraft.world.level.Level level, net.minecraft.world.InteractionHand hand) {
-        return isKnockedOut(player) ? InteractionEventResult.FAIL : InteractionEventResult.DEFAULT;
+        if (isKnockedOut(player)) {
+            return InteractionEventResult.FAIL;
+        }
+
+        if (!HarderMultiplayer.config().enableRightClickRevive) {
+            return InteractionEventResult.DEFAULT;
+        }
+
+        ItemStack heldStack = player.getItemInHand(hand);
+        if (!heldStack.is(ModItems.soulCharm)) {
+            return InteractionEventResult.DEFAULT;
+        }
+
+        Optional<ServerPlayer> targetedKoPlayer = findTargetedKoPlayer(player, 5d);
+        if (targetedKoPlayer.isEmpty()) {
+            return InteractionEventResult.DEFAULT;
+        }
+
+        if (reviveBySoulCharmUse(targetedKoPlayer.get(), player, hand)) {
+            return InteractionEventResult.SUCCESS_SERVER;
+        }
+
+        return InteractionEventResult.DEFAULT;
     }
 
     private static boolean allowToss(Player player, net.minecraft.world.item.ItemStack itemStack) {
@@ -142,6 +176,40 @@ public final class SoulRevivalKoManager {
 
     private static boolean isKnockedOut(Player player) {
         return SoulRevivalPersistence.getState().isKnockedOut(player.getUUID());
+    }
+
+    private static void handleTossRevive(ItemEntity itemEntity) {
+        if (!HarderMultiplayer.config().enableTossRevive) {
+            return;
+        }
+
+        if (!(itemEntity.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        ItemStack stack = itemEntity.getItem();
+        if (!stack.is(ModItems.soulCharm)) {
+            return;
+        }
+
+        for (ServerPlayer player : serverLevel.players()) {
+            if (!SoulRevivalPersistence.getState().isKnockedOut(player.getUUID())) {
+                continue;
+            }
+
+            if (player.distanceToSqr(itemEntity) > 2.25d) {
+                continue;
+            }
+
+            performRevive(player);
+            stack.shrink(1);
+            if (stack.isEmpty()) {
+                itemEntity.discard();
+            } else {
+                itemEntity.setItem(stack);
+            }
+            return;
+        }
     }
 
     private static void teleportToKoPosition(ServerPlayer player, SoulRevivalKOPosition position) {
@@ -196,6 +264,26 @@ public final class SoulRevivalKoManager {
             return false;
         }
 
+        performRevive(target);
+        return true;
+    }
+
+    private static boolean reviveBySoulCharmUse(ServerPlayer target, Player reviver, InteractionHand hand) {
+        if (!SoulRevivalPersistence.getState().isKnockedOut(target.getUUID())) {
+            return false;
+        }
+
+        ItemStack heldStack = reviver.getItemInHand(hand);
+        if (!heldStack.is(ModItems.soulCharm)) {
+            return false;
+        }
+
+        heldStack.shrink(1);
+        performRevive(target);
+        return true;
+    }
+
+    private static void performRevive(ServerPlayer target) {
         SoulRevivalPersistence.getState().clearKnockedOut(target.getUUID());
         target.setHealth(target.getMaxHealth());
         target.removeAllEffects();
@@ -203,7 +291,30 @@ public final class SoulRevivalKoManager {
         if (server != null) {
             SoulRevivalPersistence.save(server);
         }
-        return true;
+    }
+
+    private static Optional<ServerPlayer> findTargetedKoPlayer(Player player, double range) {
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 look = player.getViewVector(1f);
+        Vec3 reachEnd = eyePos.add(look.scale(range));
+        AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1d, 1d, 1d);
+
+        EntityHitResult hitResult = ProjectileUtil.getEntityHitResult(
+                player,
+                eyePos,
+                reachEnd,
+                box,
+                entity -> entity instanceof ServerPlayer target
+                        && target != player
+                        && SoulRevivalPersistence.getState().isKnockedOut(target.getUUID()),
+                range * range
+        );
+
+        if (hitResult == null || !(hitResult.getEntity() instanceof ServerPlayer target)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(target);
     }
 
     private static boolean consumeSoulCharm(Player player) {

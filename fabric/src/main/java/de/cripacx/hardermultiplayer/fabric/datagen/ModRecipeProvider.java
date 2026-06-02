@@ -32,10 +32,14 @@ public class ModRecipeProvider extends FabricRecipeProvider {
                         .unlockedBy("has_diamond", has(Items.DIAMOND))
                         .save(exporter);
 
-                shapeless(RecipeCategory.DECORATIONS, ModItems.yourItem)
-                        .requires(Items.DIAMOND)
-                        .requires(Items.BONE_MEAL)
-                        .unlockedBy("has_bone_meal", has(Items.BONE_MEAL))
+                    shaped(RecipeCategory.MISC, ModItems.soulCharm)
+                        .pattern("DGD")
+                        .pattern("GAG")
+                        .pattern("DGD")
+                        .define('D', Items.DIAMOND_BLOCK)
+                        .define('G', Items.GOLD_BLOCK)
+                        .define('A', Items.GOLDEN_APPLE)
+                        .unlockedBy("has_golden_apple", has(Items.GOLDEN_APPLE))
                         .save(exporter);
             }
         };
