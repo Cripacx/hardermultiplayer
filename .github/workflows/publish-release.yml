@@ -1,0 +1,300 @@
+name: publish-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      forge:
+        description: Forge
+        required: true
+        type: boolean
+        default: true
+      fabric:
+        description: Fabric
+        required: true
+        type: boolean
+        default: true
+      neoforge:
+        description: NeoForge
+        required: true
+        type: boolean
+        default: true
+      maven:
+        description: Maven
+        required: true
+        type: boolean
+        default: true
+      modrinth:
+        description: Modrinth
+        required: true
+        type: boolean
+        default: true
+      curseforge:
+        description: CurseForge
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  verify-resources:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 25
+          distribution: temurin
+
+      - name: Make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Run data generation
+        run: ./gradlew :fabric:runData
+
+      - name: Check for uncommitted datagen changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Generated resources are out of date. Please run data generation and commit the changes."
+            git diff
+            exit 1
+          fi
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: verify-resources
+    outputs:
+      ref: v${{ steps.bump-version.outputs.version }}
+      version: ${{ steps.bump-version.outputs.version }}
+      build-matrix: ${{ steps.set-build-matrix.outputs.result }}
+      publish-matrix: ${{ steps.set-publish-matrix.outputs.result }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure git user
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Extract version from properties
+        id: extract-version
+        shell: bash
+        run: echo "version=$(grep -E '^\s*version\s*=' gradle.properties | cut -d= -f2 | xargs)" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version
+        id: bump-version
+        uses: TwelveIterations/bump-version@v1
+        with:
+          version: ${{ steps.extract-version.outputs.version }}
+          bump: revision
+
+      - name: Update version, commit, push and tag
+        shell: bash
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          sed -i "s/^\s*version\s*=.*/version = ${{ steps.bump-version.outputs.version }}/g" gradle.properties
+          git add gradle.properties
+          git commit -m "Set version to ${{ steps.bump-version.outputs.version }}"
+          git push origin "${BRANCH_NAME}"
+          git tag -a "v${{ steps.bump-version.outputs.version }}" -m "Release ${{ steps.bump-version.outputs.version }}"
+          git push origin "v${{ steps.bump-version.outputs.version }}"
+
+      - name: Prepare build matrix
+        id: set-build-matrix
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const gradleProperties = fs.readFileSync('gradle.properties', 'utf8');
+
+            const includeFabricConfigured = /^(?!#)include_fabric\s*=\s*(true|false)/m.test(gradleProperties);
+            const includeForgeConfigured = /^(?!#)include_forge\s*=\s*(true|false)/m.test(gradleProperties);
+            const includeNeoForgeConfigured = /^(?!#)include_neoforge\s*=\s*(true|false)/m.test(gradleProperties);
+
+            const includeFabric = (includeFabricConfigured ? /^(?!#)include_fabric\s*=\s*true/m.test(gradleProperties) : true) && ${{ inputs.fabric }};
+            const includeForge = (includeForgeConfigured ? /^(?!#)include_forge\s*=\s*true/m.test(gradleProperties) : true) && ${{ inputs.forge }};
+            const includeNeoForge = (includeNeoForgeConfigured ? /^(?!#)include_neoforge\s*=\s*true/m.test(gradleProperties) : true) && ${{ inputs.neoforge }};
+
+            return {
+              loader: [
+                includeFabric ? 'fabric' : false,
+                includeForge ? 'forge' : false,
+                includeNeoForge ? 'neoforge' : false
+              ].filter(Boolean),
+            };
+
+      - name: Prepare publish matrix
+        id: set-publish-matrix
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const gradleProperties = fs.readFileSync('gradle.properties', 'utf8');
+
+            const includeFabricConfigured = /^(?!#)include_fabric\s*=\s*(true|false)/m.test(gradleProperties);
+            const includeForgeConfigured = /^(?!#)include_forge\s*=\s*(true|false)/m.test(gradleProperties);
+            const includeNeoForgeConfigured = /^(?!#)include_neoforge\s*=\s*(true|false)/m.test(gradleProperties);
+
+            const includeFabric = (includeFabricConfigured ? /^(?!#)include_fabric\s*=\s*true/m.test(gradleProperties) : true) && ${{ inputs.fabric }};
+            const includeForge = (includeForgeConfigured ? /^(?!#)include_forge\s*=\s*true/m.test(gradleProperties) : true) && ${{ inputs.forge }};
+            const includeNeoForge = (includeNeoForgeConfigured ? /^(?!#)include_neoforge\s*=\s*true/m.test(gradleProperties) : true) && ${{ inputs.neoforge }};
+
+            const curseForgeProjectId = gradleProperties.match(/^(?!#)curseforge_project_id\s*=\s*(.+)/m);
+            const modrinthProjectId = gradleProperties.match(/^(?!#)modrinth_project_id\s*=\s*(.+)/m);
+            const mavenReleases = gradleProperties.match(/^(?!#)maven_releases\s*=\s*(.+)/m);
+
+            const hasModrinth = modrinthProjectId && modrinthProjectId[1].trim() !== '';
+            const hasMaven = mavenReleases && mavenReleases[1].trim() !== '';
+
+            const publishCurseForge = false;
+            const publishModrinth = hasModrinth && ${{ inputs.modrinth }};
+            const publishMaven = hasMaven && ${{ inputs.maven }};
+
+            return {
+              loader: [
+                'common',
+                includeFabric ? 'fabric' : false,
+                includeForge ? 'forge' : false,
+                includeNeoForge ? 'neoforge' : false
+              ].filter(Boolean),
+              site: [
+                publishCurseForge ? 'curseforge' : false,
+                publishModrinth ? 'modrinth' : false,
+                publishMaven ? 'publish' : false
+              ].filter(Boolean),
+              exclude: [
+                { loader: 'common', site: 'curseforge' },
+                { loader: 'common', site: 'modrinth' }
+              ]
+            };
+
+  build-common:
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.ref }}
+
+      - name: Validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: gradle
+
+      - name: Make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Build common artifact
+        run: ./gradlew :common:build '-Pversion=${{ needs.create-release.outputs.version }}'
+
+      - name: Upload common artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: common-artifact
+          path: common/build
+
+  build-release:
+    runs-on: ubuntu-latest
+    needs:
+      - create-release
+      - build-common
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.create-release.outputs.build-matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.ref }}
+
+      - name: Validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: gradle
+
+      - name: Make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Download common artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: common-artifact
+          path: common/build
+
+      - name: Workaround for FG7
+        if: matrix.loader == 'forge'
+        run: ./gradlew
+
+      - name: Build ${{ matrix.loader }} artifact
+        run: ./gradlew :${{ matrix.loader }}:build '-Pversion=${{ needs.create-release.outputs.version }}'
+
+      - name: Upload ${{ matrix.loader }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.loader }}-artifact
+          path: ${{ matrix.loader }}/build
+
+  publish-release:
+    if: contains(needs.create-release.outputs.publish-matrix, 'modrinth') || contains(needs.create-release.outputs.publish-matrix, 'publish') || contains(needs.create-release.outputs.publish-matrix, 'curseforge')
+    runs-on: ubuntu-latest
+    needs:
+      - create-release
+      - build-common
+      - build-release
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.create-release.outputs.publish-matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.ref }}
+
+      - name: Download ${{ matrix.loader }} artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.loader }}-artifact
+          path: ${{ matrix.loader }}/build
+
+      - name: Validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: gradle
+
+      - name: Make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Workaround for FG7
+        if: matrix.loader == 'forge'
+        run: ./gradlew
+
+      - name: Publish
+        run: ./gradlew :${{ matrix.loader }}:${{ matrix.site }} '-Pversion=${{ needs.create-release.outputs.version }}' '-PmavenUsername=${{ secrets.MAVEN_USER }}' '-PmavenPassword=${{ secrets.MAVEN_PASSWORD }}'
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
