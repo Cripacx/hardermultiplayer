@@ -85,11 +85,13 @@ public final class SoulRevivalKoManager {
     private static void onRespawn(ServerPlayer oldPlayer, ServerPlayer newPlayer) {
         SoulRevivalKOPosition position = pendingRespawns.remove(oldPlayer.getUUID());
         if (position == null) {
+            SoulRevivalKoDisplay.sync(newPlayer);
             return;
         }
 
         SoulRevivalPersistence.getState().setKnockedOut(newPlayer.getUUID(), position);
         teleportToKoPosition(newPlayer, position);
+        SoulRevivalKoDisplay.sync(newPlayer);
         MinecraftServer server = newPlayer.level().getServer();
         if (server != null) {
             SoulRevivalPersistence.save(server);
@@ -97,6 +99,7 @@ public final class SoulRevivalKoManager {
     }
 
     private static void onJoin(ServerPlayer player) {
+        SoulRevivalKoDisplay.sync(player);
         SoulRevivalPersistence.getState().getKnockedOutPosition(player.getUUID())
                 .ifPresent(position -> teleportToKoPosition(player, position));
     }
@@ -111,6 +114,7 @@ public final class SoulRevivalKoManager {
             }
             player.setDeltaMovement(0, 0, 0);
             player.fallDistance = 0;
+            SoulRevivalKoDisplay.tick(player);
         });
     }
 
@@ -266,6 +270,31 @@ public final class SoulRevivalKoManager {
         return true;
     }
 
+    public static boolean reviveBySoulCharmPickup(Player player, ItemEntity itemEntity) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return false;
+        }
+
+        if (!SoulRevivalPersistence.getState().isKnockedOut(serverPlayer.getUUID())) {
+            return false;
+        }
+
+        ItemStack stack = itemEntity.getItem();
+        if (!stack.is(ModItems.soulCharm)) {
+            return false;
+        }
+
+        stack.shrink(1);
+        if (stack.isEmpty()) {
+            itemEntity.discard();
+        } else {
+            itemEntity.setItem(stack);
+        }
+
+        performRevive(serverPlayer);
+        return true;
+    }
+
     private static boolean reviveBySoulCharmUse(ServerPlayer target, Player reviver, InteractionHand hand) {
         if (!SoulRevivalPersistence.getState().isKnockedOut(target.getUUID())) {
             return false;
@@ -283,6 +312,7 @@ public final class SoulRevivalKoManager {
 
     private static void performRevive(ServerPlayer target) {
         SoulRevivalPersistence.getState().clearKnockedOut(target.getUUID());
+        SoulRevivalKoDisplay.clearDeadMarker(target);
         target.setHealth(target.getMaxHealth());
         target.removeAllEffects();
         MinecraftServer server = target.level().getServer();
