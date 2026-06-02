@@ -15,9 +15,14 @@ import net.blay09.mods.balm.platform.event.callback.LivingEntityCallback;
 import net.blay09.mods.balm.platform.event.callback.PlayerCallback;
 import net.blay09.mods.balm.platform.event.callback.ServerPlayerCallback;
 import net.blay09.mods.balm.platform.event.callback.ServerTickCallback;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -318,6 +323,27 @@ public final class SoulRevivalKoManager {
         MinecraftServer server = target.level().getServer();
         if (server != null) {
             SoulRevivalPersistence.save(server);
+            announceRevive(server, target);
+            playReviveSoundForAll(server);
+        }
+    }
+
+    private static void announceRevive(MinecraftServer server, ServerPlayer target) {
+        server.getPlayerList().broadcastSystemMessage(Component.literal(target.getGameProfile().name() + " was revived."), false);
+    }
+
+    private static void playReviveSoundForAll(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.connection.send(new ClientboundSoundPacket(
+                    BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.BEACON_ACTIVATE),
+                    SoundSource.BLOCKS,
+                    player.getX(),
+                    player.getY(),
+                    player.getZ(),
+                    1.0f,
+                    1.0f,
+                    0L
+            ));
         }
     }
 
