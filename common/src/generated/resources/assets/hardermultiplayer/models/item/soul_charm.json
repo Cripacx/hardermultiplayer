@@ -1,6 +1,3 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "hardermultiplayer:item/soul_charm"
-  }
+  "parent": "minecraft:item/totem_of_undying"
 }
