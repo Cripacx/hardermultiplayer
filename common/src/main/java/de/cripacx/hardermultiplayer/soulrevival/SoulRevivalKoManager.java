@@ -1,5 +1,11 @@
 package de.cripacx.hardermultiplayer.soulrevival;
 
+import java.util.Comparator;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import de.cripacx.hardermultiplayer.HarderMultiplayer;
 import de.cripacx.hardermultiplayer.item.ModItems;
 import net.blay09.mods.balm.platform.event.callback.BlockCallback;
@@ -9,25 +15,20 @@ import net.blay09.mods.balm.platform.event.callback.LivingEntityCallback;
 import net.blay09.mods.balm.platform.event.callback.PlayerCallback;
 import net.blay09.mods.balm.platform.event.callback.ServerPlayerCallback;
 import net.blay09.mods.balm.platform.event.callback.ServerTickCallback;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
-
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class SoulRevivalKoManager {
 
@@ -192,23 +193,22 @@ public final class SoulRevivalKoManager {
             return;
         }
 
-        for (ServerPlayer player : serverLevel.players()) {
-            if (!SoulRevivalPersistence.getState().isKnockedOut(player.getUUID())) {
-                continue;
-            }
+        Optional<ServerPlayer> reviveTarget = serverLevel.players().stream()
+                .filter(player -> SoulRevivalPersistence.getState().isKnockedOut(player.getUUID()))
+            .filter(player -> player.distanceToSqr(itemEntity.getX(), itemEntity.getY(), itemEntity.getZ()) <= 2.25d)
+            .min(Comparator.<ServerPlayer>comparingDouble(player -> player.distanceToSqr(itemEntity.getX(), itemEntity.getY(), itemEntity.getZ()))
+                .thenComparing(player -> player.getUUID().toString()));
 
-            if (player.distanceToSqr(itemEntity) > 2.25d) {
-                continue;
-            }
-
-            performRevive(player);
-            stack.shrink(1);
-            if (stack.isEmpty()) {
-                itemEntity.discard();
-            } else {
-                itemEntity.setItem(stack);
-            }
+        if (reviveTarget.isEmpty()) {
             return;
+        }
+
+        performRevive(reviveTarget.get());
+        stack.shrink(1);
+        if (stack.isEmpty()) {
+            itemEntity.discard();
+        } else {
+            itemEntity.setItem(stack);
         }
     }
 

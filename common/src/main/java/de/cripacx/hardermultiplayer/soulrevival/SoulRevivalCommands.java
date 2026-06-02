@@ -2,16 +2,24 @@ package de.cripacx.hardermultiplayer.soulrevival;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+
 import net.blay09.mods.balm.Balm;
+import net.blay09.mods.balm.commands.BalmCommands;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.permissions.Permissions;
 
 public final class SoulRevivalCommands {
+
+    private static final Identifier PERMISSION_STAGE_SET = Identifier.fromNamespaceAndPath("hardermultiplayer", "command.soulrevival.stage.set");
+
     private SoulRevivalCommands() {
     }
 
     public static void register() {
+        BalmCommands.registerPermission(PERMISSION_STAGE_SET, Permissions.COMMANDS_OWNER);
         Balm.commands().register(SoulRevivalCommands::registerRoot);
     }
 
@@ -25,6 +33,7 @@ public final class SoulRevivalCommands {
                                     return stage.value();
                                 }))
                         .then(Commands.literal("set")
+                            .requires(BalmCommands.requirePermission(PERMISSION_STAGE_SET))
                                 .then(Commands.argument("value", IntegerArgumentType.integer(1, 3))
                                         .executes(context -> {
                                             int value = IntegerArgumentType.getInteger(context, "value");
