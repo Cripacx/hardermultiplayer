@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+
+  "name": "${mod_name}",
+  "description": "${description}",
+  "authors": [
+    "${mod_author}"
+  ],
+  "contact": {
+    "homepage": "${homepage}",
+    "sources": "${sources}",
+    "issues": "${issues}"
+  },
+
+  "license": "${license}",
+  "icon": "${mod_id}.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "de.cripacx.hardermultiplayer.fabric.FabricHarderMultiplayer"
+    ],
+    "client": [
+      "de.cripacx.hardermultiplayer.fabric.client.FabricHarderMultiplayerClient"
+    ],
+    "fabric-datagen": [
+      "de.cripacx.hardermultiplayer.fabric.datagen.ModDataGenerator"
+    ]
+  },
+  "mixins": [
+    "hardermultiplayer.mixins.json",
+    "hardermultiplayer.fabric.mixins.json"
+  ],
+  "depends": {
+    "java": ">=${java_version}",
+    "minecraft": "${fabric_minecraft_version_range}",
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": ">=${fabric_api_version}",
+    "balm-fabric": ">=${balm_version}"
+  },
+  "suggests": {
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "modmenu.discord": "${discord}"
+      }
+    }
+  }
+}
