@@ -22,7 +22,7 @@ on:
         description: Maven
         required: true
         type: boolean
-        default: true
+        default: false
       modrinth:
         description: Modrinth
         required: true
@@ -61,9 +61,9 @@ jobs:
 
       - name: Check for uncommitted datagen changes
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
+          if [ -n "$(git status --porcelain -- common/src/generated/resources fabric/src/generated/resources forge/src/generated/resources neoforge/src/generated/resources)" ]; then
             echo "::error::Generated resources are out of date. Please run data generation and commit the changes."
-            git diff
+            git diff -- common/src/generated/resources fabric/src/generated/resources forge/src/generated/resources neoforge/src/generated/resources
             exit 1
           fi
 
