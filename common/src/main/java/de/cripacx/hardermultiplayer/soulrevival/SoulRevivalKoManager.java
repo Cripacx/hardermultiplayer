@@ -234,10 +234,9 @@ public final class SoulRevivalKoManager {
 
         SoulRevivalStage currentStage = SoulRevivalPersistence.getState().stage();
         if (currentStage == SoulRevivalStage.STAGE_1 && player.level().dimension() == Level.NETHER) {
-            if (SoulRevivalPersistence.setStage(SoulRevivalStage.STAGE_2)) {
-                MinecraftServer server = player.level().getServer();
-                if (server != null) {
-                    SoulRevivalPersistence.save(server);
+            MinecraftServer server = player.level().getServer();
+            if (server != null) {
+                if (SoulRevivalPersistence.setStage(server, SoulRevivalStage.STAGE_2)) {
                     HarderMultiplayer.logger.info("Soul Revival auto progression: stage 1 -> stage 2");
                 }
             }
@@ -245,10 +244,9 @@ public final class SoulRevivalKoManager {
         }
 
         if (currentStage == SoulRevivalStage.STAGE_2 && player.level().dimension() == Level.END) {
-            if (SoulRevivalPersistence.setStage(SoulRevivalStage.STAGE_3)) {
-                MinecraftServer server = player.level().getServer();
-                if (server != null) {
-                    SoulRevivalPersistence.save(server);
+            MinecraftServer server = player.level().getServer();
+            if (server != null) {
+                if (SoulRevivalPersistence.setStage(server, SoulRevivalStage.STAGE_3)) {
                     HarderMultiplayer.logger.info("Soul Revival auto progression: stage 2 -> stage 3");
                 }
             }

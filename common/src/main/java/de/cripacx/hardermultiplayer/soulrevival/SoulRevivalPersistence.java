@@ -1,12 +1,5 @@
 package de.cripacx.hardermultiplayer.soulrevival;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParseException;
-import de.cripacx.hardermultiplayer.HarderMultiplayer;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.storage.LevelResource;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -15,6 +8,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
+
+import de.cripacx.hardermultiplayer.HarderMultiplayer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 
 public final class SoulRevivalPersistence {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -98,6 +99,16 @@ public final class SoulRevivalPersistence {
             return false;
         }
         state.setStage(stage);
+        return true;
+    }
+
+    public static boolean setStage(MinecraftServer server, SoulRevivalStage stage) {
+        if (!setStage(stage)) {
+            return false;
+        }
+
+        save(server);
+        SoulRevivalRecipeSync.syncAll(server);
         return true;
     }
 

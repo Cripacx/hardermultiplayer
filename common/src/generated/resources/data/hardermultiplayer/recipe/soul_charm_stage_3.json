@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "minecraft:enchanted_golden_apple",
+    "C": "minecraft:end_crystal",
+    "E": "minecraft:echo_shard",
+    "N": "minecraft:netherite_ingot",
+    "S": "minecraft:nether_star"
+  },
+  "pattern": [
+    "SES",
+    "NAN",
+    "CEC"
+  ],
+  "result": {
+    "id": "hardermultiplayer:soul_charm"
+  }
+}

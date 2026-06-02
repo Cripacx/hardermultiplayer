@@ -38,11 +38,7 @@ public final class SoulRevivalCommands {
                                         .executes(context -> {
                                             int value = IntegerArgumentType.getInteger(context, "value");
                                             SoulRevivalStage stage = SoulRevivalStage.fromValue(value);
-                                            boolean changed = SoulRevivalPersistence.setStage(stage);
-
-                                            if (changed) {
-                                                SoulRevivalPersistence.save(context.getSource().getServer());
-                                            }
+                                            SoulRevivalPersistence.setStage(context.getSource().getServer(), stage);
 
                                             context.getSource().sendSuccess(() -> Component.literal("Soul Revival stage set to " + stage.value()), true);
                                             return 1;

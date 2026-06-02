@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "minecraft:blaze_rod",
+    "G": "minecraft:ghast_tear",
+    "N": "minecraft:netherite_scrap"
+  },
+  "pattern": [
+    "BNB",
+    "NGN",
+    "BNB"
+  ],
+  "result": {
+    "id": "hardermultiplayer:soul_charm"
+  }
+}

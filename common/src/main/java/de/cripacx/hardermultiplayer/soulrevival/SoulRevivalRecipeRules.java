@@ -12,28 +12,34 @@ public final class SoulRevivalRecipeRules {
     private SoulRevivalRecipeRules() {
     }
 
+    public static ItemStack filterSoulCharmCraftResult(ItemStack result, Container craftMatrix) {
+        return isSoulCharmCraftAllowed(result, craftMatrix) ? result : ItemStack.EMPTY;
+    }
+
     public static boolean shouldBlockSoulCharmCraft(Player player, ItemStack result, Container craftMatrix) {
         if (player.level().isClientSide()) {
             return false;
         }
 
-        if (!result.is(ModItems.soulCharm)) {
+        if (isSoulCharmCraftAllowed(result, craftMatrix)) {
             return false;
         }
 
+        player.sendSystemMessage(Component.literal("This Soul Charm recipe is not available in the current stage."));
+        return true;
+    }
+
+    private static boolean isSoulCharmCraftAllowed(ItemStack result, Container craftMatrix) {
+        if (!result.is(ModItems.soulCharm)) {
+            return true;
+        }
+
         SoulRevivalStage stage = SoulRevivalPersistence.getState().stage();
-        boolean allowed = switch (stage) {
+        return switch (stage) {
             case STAGE_1 -> matchesStage1(craftMatrix);
             case STAGE_2 -> matchesStage2(craftMatrix);
             case STAGE_3 -> matchesStage3(craftMatrix);
         };
-
-        if (!allowed) {
-            player.sendSystemMessage(Component.literal("This Soul Charm recipe is not available in the current stage."));
-            return true;
-        }
-
-        return false;
     }
 
     private static boolean matchesStage1(Container matrix) {
