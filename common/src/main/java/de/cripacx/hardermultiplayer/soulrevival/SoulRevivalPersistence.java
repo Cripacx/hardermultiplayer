@@ -14,7 +14,12 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 
 import de.cripacx.hardermultiplayer.HarderMultiplayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
 
 public final class SoulRevivalPersistence {
@@ -109,7 +114,19 @@ public final class SoulRevivalPersistence {
 
         save(server);
         SoulRevivalRecipeSync.syncAll(server);
+        broadcastStageChangeTitle(server, stage);
         return true;
+    }
+
+    private static void broadcastStageChangeTitle(MinecraftServer server, SoulRevivalStage stage) {
+        Component title = Component.literal("New Revive Stage");
+        Component subtitle = Component.literal("Stage " + stage.value() + " is now active");
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 60, 20));
+            player.connection.send(new ClientboundSetTitleTextPacket(title));
+            player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+        }
     }
 
     private static Path statePath(MinecraftServer server) {
