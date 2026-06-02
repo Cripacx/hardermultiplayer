@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "minecraft:golden_apple",
+    "D": "minecraft:diamond_block",
+    "G": "minecraft:gold_block"
+  },
+  "pattern": [
+    "DGD",
+    "GAG",
+    "DGD"
+  ],
+  "result": {
+    "id": "hardermultiplayer:soul_charm"
+  }
+}
